@@ -9,9 +9,6 @@ on:
       - main
       - master
 
-env:
-  GITHUB_CURRENT_BRANCH: ${{ github.head_ref || github.ref_name }}
-
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
@@ -23,7 +20,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '16.18.1'  
+        node-version: '16.18.1'
 
     - name: Install dependencies
       run: npm install
@@ -33,9 +30,9 @@ jobs:
       run: npm test
       working-directory: sample-nodejs-app
 
-    # Optional: add lint or build if needed
-    # - name: Lint
-    #   run: npm run lint
+    - name: Lint
+      run: npm run lint
+      working-directory: sample-nodejs-app
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
@@ -47,20 +44,31 @@ jobs:
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Set Mode environment variables
+    - name: Set deployment environment variables
       run: |
-        if [[ "${GITHUB_CURRENT_BRANCH}" == "development" ]]; then
+        # Get the current branch name from github.ref_name
+        BRANCH="${{ github.ref_name }}"
+        echo "GITHUB_CURRENT_BRANCH=$BRANCH" >> $GITHUB_ENV
+        if [ "$BRANCH" = "development" ]; then
           echo "MODE=DEV" >> $GITHUB_ENV
           echo "ECS_SERVICE=development-service" >> $GITHUB_ENV
           echo "ECS_CLUSTER=DevelopmentCluster" >> $GITHUB_ENV
-        elif [[ "${GITHUB_CURRENT_BRANCH}" == "staging" ]]; then
+        elif [ "$BRANCH" = "staging" ]; then
           echo "MODE=STAGING" >> $GITHUB_ENV
           echo "ECS_SERVICE=staging-service" >> $GITHUB_ENV
           echo "ECS_CLUSTER=StagingCluster" >> $GITHUB_ENV
-        elif [[ "${GITHUB_CURRENT_BRANCH}" == "production" ]]; then
+        elif [ "$BRANCH" = "production" ]; then
           echo "MODE=PROD" >> $GITHUB_ENV
           echo "ECS_SERVICE=production-service" >> $GITHUB_ENV
           echo "ECS_CLUSTER=ProductionCluster" >> $GITHUB_ENV
+        elif [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
+          echo "MODE=DEV" >> $GITHUB_ENV
+          echo "ECS_SERVICE=development-service" >> $GITHUB_ENV
+          echo "ECS_CLUSTER=DevelopmentCluster" >> $GITHUB_ENV
+        else
+          echo "MODE=DEV" >> $GITHUB_ENV
+          echo "ECS_SERVICE=development-service" >> $GITHUB_ENV
+          echo "ECS_CLUSTER=DevelopmentCluster" >> $GITHUB_ENV
         fi
 
     - name: Build, tag, and push Docker image
@@ -71,13 +79,19 @@ jobs:
         AWS_REGION: ${{ secrets.AWS_REGION }}
         ECS_CLUSTER: ${{ env.ECS_CLUSTER }}
         ECS_SERVICE: ${{ env.ECS_SERVICE }}
+        GITHUB_CURRENT_BRANCH: ${{ env.GITHUB_CURRENT_BRANCH }}
       run: |
         set -e  # Stop script on first error
-        IMAGE_TAG=${{ env.GITHUB_CURRENT_BRANCH }}
-        docker build --build-arg MODE=$MODE -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        IMAGE_TAG=$GITHUB_CURRENT_BRANCH
+        # Adjust build context to 'sample-nodejs-app' if that's where the Dockerfile is
+        docker build --build-arg MODE=$MODE -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG sample-nodejs-app
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
     - name: Deploy to Amazon ECS
+      env:
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        ECS_CLUSTER: ${{ env.ECS_CLUSTER }}
+        ECS_SERVICE: ${{ env.ECS_SERVICE }}
       run: |
         set -e
         aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment --region $AWS_REGION
