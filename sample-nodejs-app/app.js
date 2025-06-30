@@ -37,11 +37,9 @@ app.post("/", function (req, res) {
     <h2>
      That was easy, your result is: ${calculator(num1, num2, operator)}
     </h2>
-    <img src="https://image-repo-buraku.s3.eu-west-1.amazonaws.com/EC2.png" alt="EC2-Icon"class="center" width="10%" style="vertical-align:middle;margin:0px 100px">
-    <p>No compliments needed — my code is already cooler than a penguin in sunglasses 😎.
-    </p>
-    <p>And guess what? I'm so lightweight, I'm chilling on a single EC2 instance like it's a beach chair! 🏖️
-    </p>
+    
+    <p>No bragging required — this app is already running smoother than a cloud in the sky ☁️🚀.</p>
+    <p>And guess what? Thanks to AWS ECS, it's scaling effortlessly while keeping things light and agile. 🐳🟦</p>
 
     <p><a href="YOUR IP">BACK TO CALCULATOR...</a></p>
   `);
