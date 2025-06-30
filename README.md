@@ -209,7 +209,8 @@ I used the default security group, which blocks inbound HTTP traffic.
 
 ## Architecture
 
-![Architecture Diagram](docs/architechture-diagram.svg)
+![Architecture Diagram](docs/diagram.png
+)
 
 > _**Note:**full cloud workflow: GitHub → ECR → ECS (Fargate) → User._
 
