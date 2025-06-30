@@ -1,0 +1,82 @@
+name: Build, Test, and Deploy to ECS
+
+on:
+  push:
+    branches:
+      - production
+      - staging
+      - development
+      - main
+      - master
+
+env:
+  GITHUB_CURRENT_BRANCH: ${{ github.head_ref || github.ref_name }}
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16.18.1'  
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run tests
+      run: npm test
+
+    # Optional: add lint or build if needed
+    # - name: Lint
+    #   run: npm run lint
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Set Mode environment variables
+      run: |
+        if [[ "${GITHUB_CURRENT_BRANCH}" == "development" ]]; then
+          echo "MODE=DEV" >> $GITHUB_ENV
+          echo "ECS_SERVICE=development-service" >> $GITHUB_ENV
+          echo "ECS_CLUSTER=DevelopmentCluster" >> $GITHUB_ENV
+        elif [[ "${GITHUB_CURRENT_BRANCH}" == "staging" ]]; then
+          echo "MODE=STAGING" >> $GITHUB_ENV
+          echo "ECS_SERVICE=staging-service" >> $GITHUB_ENV
+          echo "ECS_CLUSTER=StagingCluster" >> $GITHUB_ENV
+        elif [[ "${GITHUB_CURRENT_BRANCH}" == "production" ]]; then
+          echo "MODE=PROD" >> $GITHUB_ENV
+          echo "ECS_SERVICE=production-service" >> $GITHUB_ENV
+          echo "ECS_CLUSTER=ProductionCluster" >> $GITHUB_ENV
+        fi
+
+    - name: Build, tag, and push Docker image
+      env:
+        ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+        ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+        MODE: ${{ env.MODE }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        ECS_CLUSTER: ${{ env.ECS_CLUSTER }}
+        ECS_SERVICE: ${{ env.ECS_SERVICE }}
+      run: |
+        set -e  # Stop script on first error
+        IMAGE_TAG=${{ env.GITHUB_CURRENT_BRANCH }}
+        docker build --build-arg MODE=$MODE -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+    - name: Deploy to Amazon ECS
+      run: |
+        set -e
+        aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment --region $AWS_REGION
+        aws ecs wait services-stable --cluster $ECS_CLUSTER --services $ECS_SERVICE --region $AWS_REGION
