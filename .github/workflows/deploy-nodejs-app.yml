@@ -3,9 +3,6 @@ name: Build, Test, and Deploy to ECS
 on:
   push:
     branches:
-      - production
-      - staging
-      - development
       - main
       - master
 
@@ -49,22 +46,10 @@ jobs:
         # Get the current branch name from github.ref_name
         BRANCH="${{ github.ref_name }}"
         echo "GITHUB_CURRENT_BRANCH=$BRANCH" >> $GITHUB_ENV
-        if [ "$BRANCH" = "development" ]; then
+        if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
           echo "MODE=DEV" >> $GITHUB_ENV
-          echo "ECS_SERVICE=development-service" >> $GITHUB_ENV
-          echo "ECS_CLUSTER=DevelopmentCluster" >> $GITHUB_ENV
-        elif [ "$BRANCH" = "staging" ]; then
-          echo "MODE=STAGING" >> $GITHUB_ENV
-          echo "ECS_SERVICE=staging-service" >> $GITHUB_ENV
-          echo "ECS_CLUSTER=StagingCluster" >> $GITHUB_ENV
-        elif [ "$BRANCH" = "production" ]; then
-          echo "MODE=PROD" >> $GITHUB_ENV
-          echo "ECS_SERVICE=production-service" >> $GITHUB_ENV
-          echo "ECS_CLUSTER=ProductionCluster" >> $GITHUB_ENV
-        elif [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
-          echo "MODE=DEV" >> $GITHUB_ENV
-          echo "ECS_SERVICE=development-service" >> $GITHUB_ENV
-          echo "ECS_CLUSTER=DevelopmentCluster" >> $GITHUB_ENV
+          echo "ECS_SERVICE=sample-nodejs-app-taskDef-service" >> $GITHUB_ENV
+          echo "ECS_CLUSTER=sample-nodejs-app-cluster" >> $GITHUB_ENV
         else
           echo "MODE=DEV" >> $GITHUB_ENV
           echo "ECS_SERVICE=development-service" >> $GITHUB_ENV
