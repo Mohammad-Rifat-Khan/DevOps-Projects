@@ -27,9 +27,11 @@ jobs:
 
     - name: Install dependencies
       run: npm install
+      working-directory: sample-nodejs-app
 
     - name: Run tests
       run: npm test
+      working-directory: sample-nodejs-app
 
     # Optional: add lint or build if needed
     # - name: Lint
