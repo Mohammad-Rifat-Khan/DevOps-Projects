@@ -6,6 +6,7 @@ on:
       - production
       - staging
       - development
+      - main
 
 env:
   GITHUB_CURRENT_BRANCH: ${{ github.head_ref || github.ref_name }}
